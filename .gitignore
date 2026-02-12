@@ -1,0 +1,51 @@
+# Build output (.NET)
+bin/
+obj/
+[Bb]uild/
+[Rr]elease/
+[Dd]ebug/
+x64/
+x86/
+AnyCPU/
+
+# Compiled binaries
+*.dll
+*.exe
+*.pdb
+*.cache
+
+# Test output
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+# Visual Studio / VS Code
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider / ReSharper
+.idea/
+_ReSharper*/
+*.DotSettings.user
+
+# Web / Node / Vite
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Logs / temp
+*.log
+*.tmp
+*.temp
+*.swp
+
