@@ -17,6 +17,7 @@ export class App {
   private nextRefreshAt: Date | null = null;
   private readonly refreshIntervalMs = 5 * 60 * 1000;
   private currentStationIndex = 0;
+  private classicFilter: { stationName: string; lineNumber: string; origin: string; destination: string } | null = null;
   private routeSuggestionsByStation: Record<string, StationRouteSuggestions> = {};
   private routeLookupDebounceTimers = new Map<number, number>();
   private routeLookupForceRefreshByRow = new Map<number, boolean>();
@@ -90,8 +91,12 @@ export class App {
 
       <section class="card">
         <h3>Connection Settings</h3>
+        <div class="settings-hint-box">
+          <p class="settings-hint-text">SL Bus Tracker uses the <strong>Trafiklab</strong> real-time API to fetch live bus data. You need a free API key — register or log in at the Trafiklab developer portal and subscribe to the <strong>SL Real-Time Data</strong> API to get yours.</p>
+          <a href="https://developer.trafiklab.se" target="_blank" rel="noopener" class="settings-api-link">Get API key at developer.trafiklab.se ↗</a>
+        </div>
         <label>Trafiklab API Key</label>
-        <input id="api-key" type="password" value="${escapeAttr(settings.apiKey)}" placeholder="Enter your API key" />
+        <input id="api-key" type="password" value="${escapeAttr(settings.apiKey)}" placeholder="Paste your Trafiklab API key here" />
 
         <div class="two-columns">
           <div>
@@ -219,6 +224,20 @@ export class App {
       `;
     }
 
+    const filterBanner = this.classicFilter ? `
+      <div class="filter-banner">
+        <div class="filter-info">
+          <span class="filter-badge">Filtered</span>
+          <span>Station: <strong>${escapeHtml(this.classicFilter.stationName)}</strong></span>
+          <span class="filter-sep">·</span>
+          <span>Line <strong>${escapeHtml(this.classicFilter.lineNumber)}</strong></span>
+          <span class="filter-sep">·</span>
+          <span>${escapeHtml(this.classicFilter.origin)} → ${escapeHtml(this.classicFilter.destination)}</span>
+        </div>
+        <button id="clear-filter" class="ghost-button">✕ Clear filter</button>
+      </div>
+    ` : "";
+
     const content = this.result ? this.renderClassicResult(this.result) : "";
 
     return `
@@ -232,6 +251,7 @@ export class App {
         </div>
         <p class="muted">Records: ${this.settings.lines.length} | Window: ${this.settings.timeWindowMinutes} minutes</p>
       </section>
+      ${filterBanner}
       ${loadingBlock}
       ${errorBlock}
       ${content}
@@ -239,10 +259,24 @@ export class App {
   }
 
   private renderClassicResult(result: UpcomingBusQueryResult): string {
-    return result.lines
+    const filter = this.classicFilter;
+    const linesToShow = filter
+      ? result.lines.filter((line) =>
+          equalsIgnoreCase(line.configuredStopGroupName, filter.stationName) &&
+          equalsIgnoreCase(line.lineNumber, filter.lineNumber) &&
+          containsIgnoreCase(line.configuredOrigin, filter.origin) &&
+          containsIgnoreCase(line.configuredDestination, filter.destination)
+        )
+      : result.lines;
+
+    return linesToShow
       .map((line) => {
         const arrivals = result.arrivals.filter(
-          (a) => a.lineNumber === line.lineNumber && a.configuredStopGroupName === line.configuredStopGroupName
+          (a) =>
+            equalsIgnoreCase(a.lineNumber, line.lineNumber) &&
+            equalsIgnoreCase(a.configuredStopGroupName, line.configuredStopGroupName) &&
+            containsIgnoreCase(a.origin, line.configuredOrigin) &&
+            containsIgnoreCase(a.destination, line.configuredDestination)
         );
 
         return `
@@ -281,13 +315,17 @@ export class App {
     result: UpcomingBusQueryResult | null
   ): string {
     const rows = stationLines.map((line) => {
-      const nextArrival = this.findNearestArrivalForLine(result, stationName, line.lineNumber);
+      const nextArrival = this.findNearestArrivalForLine(result, stationName, line.lineNumber, line.origin, line.destination);
       const displayTime = nextArrival ? formatTime(nextArrival.arrivalTime) : "--:--:--";
       const actualOrigin = nextArrival?.origin ?? line.origin;
       const actualDestination = nextArrival?.destination ?? line.destination;
 
       return `
-        <article class="mobile-line-card">
+        <article class="mobile-line-card"
+          data-station="${escapeAttr(stationName)}"
+          data-line="${escapeAttr(line.lineNumber)}"
+          data-origin="${escapeAttr(line.origin)}"
+          data-destination="${escapeAttr(line.destination)}">
           <p class="mobile-line-title">Line ${escapeHtml(line.lineNumber)}</p>
           <p>Origin: ${escapeHtml(actualOrigin)}</p>
           <p>Destination: ${escapeHtml(actualDestination)}</p>
@@ -309,13 +347,16 @@ export class App {
   private findNearestArrivalForLine(
     result: UpcomingBusQueryResult | null,
     stationName: string,
-    lineNumber: string
+    lineNumber: string,
+    origin: string,
+    destination: string
   ): UpcomingBusArrival | null {
     if (!result) return null;
 
     const candidates = result.arrivals
       .filter((arrival) => equalsIgnoreCase(arrival.configuredStopGroupName, stationName))
       .filter((arrival) => equalsIgnoreCase(arrival.lineNumber, lineNumber))
+      .filter((arrival) => containsIgnoreCase(arrival.origin, origin) && containsIgnoreCase(arrival.destination, destination))
       .sort((a, b) => a.arrivalTime.getTime() - b.arrivalTime.getTime());
 
     return candidates[0] ?? null;
@@ -352,6 +393,7 @@ export class App {
 
     this.byId<HTMLButtonElement>("go-settings")?.addEventListener("click", () => {
       this.menuOpen = false;
+      this.classicFilter = null;
       this.viewMode = "settings";
       this.render();
     });
@@ -367,6 +409,7 @@ export class App {
 
     this.byId<HTMLButtonElement>("go-classic")?.addEventListener("click", () => {
       this.menuOpen = false;
+      this.classicFilter = null;
       this.viewMode = "classic";
       this.render();
       if (this.settings && !this.result) {
@@ -510,6 +553,27 @@ export class App {
 
     this.byId<HTMLButtonElement>("next-station")?.addEventListener("click", () => {
       this.moveStation(1);
+    });
+
+    this.root.querySelectorAll<HTMLElement>(".mobile-line-card").forEach((card) => {
+      card.addEventListener("click", () => {
+        this.classicFilter = {
+          stationName: card.dataset.station ?? "",
+          lineNumber: card.dataset.line ?? "",
+          origin: card.dataset.origin ?? "",
+          destination: card.dataset.destination ?? ""
+        };
+        this.viewMode = "classic";
+        this.render();
+        if (this.settings && !this.result) {
+          void this.loadResults();
+        }
+      });
+    });
+
+    this.byId<HTMLButtonElement>("clear-filter")?.addEventListener("click", () => {
+      this.classicFilter = null;
+      this.render();
     });
   }
 
@@ -773,6 +837,11 @@ function validateSettings(settings: AppSettings): void {
 
 function equalsIgnoreCase(a: string, b: string): boolean {
   return a.localeCompare(b, undefined, { sensitivity: "base" }) === 0;
+}
+
+function containsIgnoreCase(a: string, b: string): boolean {
+  if (!b.trim()) return true;
+  return foldText(a).includes(foldText(b));
 }
 
 function formatTime(date: Date): string {

@@ -230,6 +230,13 @@ select {
   border-radius: 14px;
   padding: 12px;
   background: rgba(19, 24, 33, 0.55);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.mobile-line-card:hover {
+  border-color: var(--accent);
+  background: rgba(30, 45, 65, 0.75);
 }
 
 .mobile-line-card p {
@@ -339,6 +346,78 @@ select {
 
 .muted {
   color: var(--muted);
+}
+
+.filter-banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--accent);
+  background: rgba(40, 70, 105, 0.28);
+  color: var(--text);
+}
+
+.filter-info {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.95rem;
+}
+
+.filter-badge {
+  background: var(--accent-2);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 2px 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.filter-sep {
+  color: var(--line);
+}
+
+.settings-hint-box {
+  margin-bottom: 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--accent-2);
+  background: rgba(28, 48, 72, 0.4);
+}
+
+.settings-hint-text {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.settings-hint-text strong {
+  color: var(--text);
+}
+
+.settings-api-link {
+  display: inline-block;
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.9rem;
+  border: 1px solid var(--accent-2);
+  border-radius: 8px;
+  padding: 5px 10px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.settings-api-link:hover {
+  background: rgba(110, 168, 215, 0.12);
+  border-color: var(--accent);
 }
 
 @media (max-width: 900px) {
